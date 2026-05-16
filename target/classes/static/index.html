@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幸运大转盘</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 25px;
+            font-size: 13px;
+        }
+        .info-text {
+            color: #999;
+            font-size: 12px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        .info-text strong {
+            color: #ff6b6b;
+        }
+        .wheel-container {
+            position: relative;
+            width: 360px;
+            height: 360px;
+            margin: 0 auto 25px;
+        }
+        .wheel-ring {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            right: -10px;
+            bottom: -10px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ffd700, #ffaa00);
+            z-index: 0;
+        }
+        .wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+            transition: transform 5s cubic-bezier(0.15, 0.85, 0.15, 1);
+            overflow: hidden;
+            z-index: 1;
+        }
+        .wheel-bg {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+        .segment-label {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 0;
+            height: 0;
+            transform-origin: 0 0;
+        }
+        .segment-label-inner {
+            position: absolute;
+            left: -50px;
+            top: -120px;
+            width: 100px;
+            text-align: center;
+        }
+        .segment-label-text {
+            display: block;
+            font-size: 13px;
+            font-weight: bold;
+            color: #333;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+            line-height: 1.2;
+        }
+        .segment-label-icon {
+            display: block;
+            font-size: 18px;
+            margin-top: 4px;
+        }
+        .pointer {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 45px solid #ff4757;
+            z-index: 10;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+        }
+        .center-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
+            border-radius: 50%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3), inset 0 -4px 10px rgba(0,0,0,0.2);
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            outline: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .center-circle:active:not(.disabled) {
+            transform: translate(-50%, -50%) scale(0.95);
+        }
+        .center-circle.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            user-select: none;
+        }
+        .name-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .name-input {
+            width: 100%;
+            max-width: 250px;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            margin: 20px 0;
+        }
+        .name-input:focus {
+            border-color: #667eea;
+        }
+        .result-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .popup-content {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            animation: popIn 0.3s ease;
+            max-width: 400px;
+        }
+        @keyframes popIn {
+            from {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        .popup-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+        .popup-title {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .popup-prize {
+            font-size: 24px;
+            color: #ff6b6b;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .popup-time {
+            color: #999;
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+        .btn-close {
+            padding: 12px 40px;
+            font-size: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+        }
+        .history {
+            margin-top: 30px;
+            text-align: left;
+        }
+        .history-title {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        .history-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .history-prize {
+            font-weight: 500;
+            color: #ff6b6b;
+        }
+        .history-name {
+            color: #666;
+            font-size: 13px;
+        }
+        .history-time {
+            color: #999;
+            font-size: 12px;
+        }
+        .history-item.win .history-prize {
+            color: #e74c3c;
+        }
+        .history-item.win .history-name {
+            color: #e74c3c;
+            font-weight: 500;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            color: #666;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        .tab:hover {
+            color: #667eea;
+        }
+        .tab.active {
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            margin-bottom: -2px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 14px;
+        }
+        [v-cloak] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" v-cloak>
+        <div class="container">
+            <h1>🎰 幸运大转盘</h1>
+            <p class="subtitle">点击按钮开始抽奖，转盘自动旋转后显示结果</p>
+            <p class="info-text">
+                奖品概率：<br>
+                <strong>❓奖品随机选 0.5%</strong> | 💻笔记本 1% | 📱手机 2% | 🔋充电宝 5% | 🔄再抽一次 5% | 🧾汇演发票 10% | 😊谢谢惠顾 76.5%
+            </p>
+
+            <div class="wheel-container">
+                <div class="pointer"></div>
+                <div class="wheel-ring"></div>
+                <div class="wheel" :style="{ transform: `rotate(${rotation}deg)` }">
+                    <div class="wheel-bg" :style="{ background: wheelGradient }"></div>
+                    <div
+                        v-for="(prize, index) in prizes"
+                        :key="index"
+                        class="segment-label"
+                        :style="getLabelStyle(index)"
+                    >
+                        <div class="segment-label-inner">
+                            <span class="segment-label-text">{{ prize.name }}</span>
+                            <span class="segment-label-icon">{{ prize.icon }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="center-circle" :class="{ disabled: spinning }" @click="spin" unselectable="on">🎁</div>
+            </div>
+
+            <div class="tabs">
+                <div
+                    v-for="tab in tabs"
+                    :key="tab.key"
+                    :class="['tab', { active: currentTab === tab.key }]"
+                    @click="currentTab = tab.key"
+                >
+                    {{ tab.label }}
+                </div>
+            </div>
+
+            <div v-show="currentTab === 'draw'">
+                <div class="history" v-if="history.length > 0">
+                    <div class="history-title">📜 抽奖记录（最近20条）</div>
+                    <div class="history-item" v-for="(item, index) in history" :key="index">
+                        <span class="history-info">
+                            <span class="history-prize">{{ item.icon }} {{ item.prize }}</span>
+                            <span class="history-name" v-if="item.name"> | {{ item.name }}</span>
+                        </span>
+                        <span class="history-time">{{ item.time }}</span>
+                    </div>
+                </div>
+                <div class="empty-state" v-else>
+                    暂无抽奖记录
+                </div>
+            </div>
+
+            <div v-show="currentTab === 'win'">
+                <div class="history" v-if="winHistory.length > 0">
+                    <div class="history-title">🏆 中奖记录（全部）</div>
+                    <div class="history-item win" v-for="(item, index) in winHistory" :key="index">
+                        <span class="history-info">
+                            <span class="history-prize">{{ item.icon }} {{ item.prize }}</span>
+                            <span class="history-name"> | {{ item.name }}</span>
+                        </span>
+                        <span class="history-time">{{ item.time }}</span>
+                    </div>
+                </div>
+                <div class="empty-state" v-else>
+                    暂无中奖记录
+                </div>
+            </div>
+        </div>
+
+        <!-- 输入名字弹窗 -->
+        <div class="name-popup" v-if="showNamePopup">
+            <div class="popup-content">
+                <div class="popup-icon">👤</div>
+                <div class="popup-title">请输入您的名字</div>
+                <input
+                    type="text"
+                    class="name-input"
+                    v-model="userName"
+                    placeholder="请输入名字"
+                    maxlength="20"
+                    ref="nameInput"
+                    @keyup.enter="confirmName"
+                >
+                <button class="btn-close" @click="confirmName">确定</button>
+                <button
+                    class="btn-close"
+                    style="background: #e0e0e0; color: #666; margin-left: 10px;"
+                    @click="clearName"
+                    v-if="storedUserName"
+                >
+                    清除记录
+                </button>
+            </div>
+        </div>
+        <div class="name-popup" v-if="showNamePopup">
+            <div class="popup-content">
+                <div class="popup-icon">👤</div>
+                <div class="popup-title">请输入您的名字</div>
+                <input
+                    type="text"
+                    class="name-input"
+                    v-model="userName"
+                    placeholder="请输入名字"
+                    maxlength="20"
+                    ref="nameInput"
+                    @keyup.enter="confirmName"
+                >
+                <button class="btn-close" @click="confirmName">确定</button>
+            </div>
+        </div>
+
+        <!-- 结果弹窗 -->
+        <div class="result-popup" v-if="showPopup">
+            <div class="popup-content">
+                <div class="popup-icon">{{ currentPrize.icon }}</div>
+                <div class="popup-title" v-if="currentPrize.name !== '谢谢惠顾'">🎉 恭喜您！</div>
+                <div class="popup-title" v-else></div>
+                <div class="popup-prize">{{ currentPrize.name }}</div>
+                <div class="popup-time">{{ userName }}</div>
+                <div class="popup-time">{{ currentPrize.time }}</div>
+                <button class="btn-close" @click="closePopup">确定</button>
+            </div>
+        </div>
+
+        <!-- 边界提示弹窗 -->
+        <div class="result-popup" v-if="showBoundaryPopup">
+            <div class="popup-content">
+                <div class="popup-icon">🤔</div>
+                <div class="popup-title">哎呀！</div>
+                <div class="popup-prize">指针停在边界了</div>
+                <div class="popup-time">命运之手在颤抖...</div>
+                <button class="btn-close" @click="closeBoundaryPopup">再抽一次</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        const PRIZES_CONFIG = [
+            { name: '奖品随机选', icon: '❓', probability: 0.5 },
+            { name: '笔记本电脑', icon: '💻', probability: 1 },
+            { name: '谢谢惠顾', icon: '😊', probability: 38.25 },
+            { name: '手机', icon: '📱', probability: 2 },
+            { name: '充电宝', icon: '🔋', probability: 5 },
+            { name: '再抽一次', icon: '🔄', probability: 5 },
+            { name: '汇演发票', icon: '🧾', probability: 10 },
+            { name: '谢谢惠顾', icon: '😊', probability: 38.25 }
+        ];
+
+        const SEGMENT_COLORS = [
+            '#9B59B6', '#3498DB', '#2ECC71', '#F39C12',
+            '#E74C3C', '#1ABC9C', '#95A5A6', '#C2185B'
+        ];
+
+        createApp({
+            mounted() {
+                this.loadHistory();
+                this.loadUserName();
+            },
+            data() {
+                return {
+                    prizes: PRIZES_CONFIG,
+                    colors: SEGMENT_COLORS,
+                    rotation: 0,
+                    spinning: false,
+                    showPopup: false,
+                    showNamePopup: false,
+                    showBoundaryPopup: false,
+                    currentPrize: null,
+                    winningIndex: 0,
+                    userName: '',
+                    storedUserName: '',
+                    history: [],
+                    winHistory: [],
+                    currentRotation: 0,
+                    currentTab: 'draw',
+                    tabs: [
+                        { key: 'draw', label: '抽奖记录' },
+                        { key: 'win', label: '中奖记录' }
+                    ]
+                };
+            },
+            computed: {
+                wheelGradient() {
+                    let gradient = [];
+                    for (let i = 0; i < 8; i++) {
+                        const start = i * 45;
+                        const end = (i + 1) * 45 - 2;
+                        gradient.push(`${this.colors[i]} ${start}deg ${end}deg`);
+                        gradient.push(`#fff ${end}deg ${(i + 1) * 45}deg`);
+                    }
+                    return `conic-gradient(${gradient.join(', ')})`;
+                }
+            },
+            methods: {
+                getLabelStyle(index) {
+                    // conic-gradient 从12点钟(0deg)开始顺时针
+                    // 格子0: 0-43deg, 中心22.5deg
+                    // 格子1: 45-88deg, 中心67.5deg
+                    // ...
+                    const angle = index * 45 + 22.5;
+                    return {
+                        transform: `rotate(${angle}deg)`
+                    };
+                },
+
+                getRandomPrizeIndex() {
+                    const random = Math.random() * 100;
+                    let cumulative = 0;
+                    for (let i = 0; i < PRIZES_CONFIG.length; i++) {
+                        cumulative += PRIZES_CONFIG[i].probability;
+                        if (random < cumulative) {
+                            return i;
+                        }
+                    }
+                    return PRIZES_CONFIG.length - 1;
+                },
+
+                spin() {
+                    if (this.spinning) return;
+
+                    // 如果有保存的用户名，直接开始抽奖
+                    if (this.storedUserName) {
+                        this.userName = this.storedUserName;
+                        this.startSpin();
+                        return;
+                    }
+
+                    // 显示输入名字弹窗
+                    this.showNamePopup = true;
+                    this.userName = '';
+
+                    // 下一个tick后聚焦输入框
+                    this.$nextTick(() => {
+                        if (this.$refs.nameInput) {
+                            this.$refs.nameInput.focus();
+                        }
+                    });
+                },
+
+                confirmName() {
+                    if (!this.userName || !this.userName.trim()) {
+                        alert('请输入您的名字');
+                        return;
+                    }
+                    this.userName = this.userName.trim();
+                    // 保存到 cookie，有效期 30 天
+                    this.setCookie('lotteryUserName', this.userName, 30);
+                    this.storedUserName = this.userName;
+                    this.showNamePopup = false;
+                    this.startSpin();
+                },
+
+                clearName() {
+                    this.userName = '';
+                    this.storedUserName = '';
+                    this.deleteCookie('lotteryUserName');
+                    this.$refs.nameInput.focus();
+                },
+
+                setCookie(name, value, days) {
+                    const expires = new Date();
+                    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+                    document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires.toUTCString()};path=/`;
+                },
+
+                getCookie(name) {
+                    const nameEQ = name + '=';
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        let cookie = cookies[i].trim();
+                        if (cookie.indexOf(nameEQ) === 0) {
+                            return decodeURIComponent(cookie.substring(nameEQ.length));
+                        }
+                    }
+                    return null;
+                },
+
+                deleteCookie(name) {
+                    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+                },
+
+                loadUserName() {
+                    const savedName = this.getCookie('lotteryUserName');
+                    if (savedName) {
+                        this.storedUserName = savedName;
+                    }
+                },
+
+                startSpin() {
+                    const winningIndex = this.getRandomPrizeIndex();
+                    console.log('中奖奖品索引:', winningIndex, PRIZES_CONFIG[winningIndex]);
+
+                    // 计算目标奖品中心角度（从12点钟方向顺时针）
+                    // conic-gradient每个格子: 0-43deg(颜色), 43-45deg(白色缝隙), ...
+                    // 中心角度为: 21.5, 66.5, 111.5, 156.5, 201.5, 246.5, 291.5, 336.5
+                    const centerAngle = winningIndex * 45 + 21.5;
+
+                    // 白色缝隙位置: [43,45), [88,90), [133,135), [178,180),
+                    //                [223,225), [268,270), [313,315), [358,360)
+                    // 指针停在缝隙里才算不中奖，压边/擦边都算中奖
+                    // 安全区域距边界至少留3度余量
+                    const maxOffset = 18.5;
+                    const randomOffset = (Math.random() - 0.5) * 2 * maxOffset;
+                    let targetAngle = centerAngle + randomOffset;
+                    targetAngle = Math.max(0, Math.min(359, targetAngle));
+                    console.log('目标角度:', targetAngle, '度', '(中心:', centerAngle, ')');
+
+                    // 根据累计旋转修正 finalRotation，确保 actualAngle == targetAngle
+                    const p = ((this.rotation % 360) + 360) % 360;
+                    const desiredN = (360 - targetAngle + 360) % 360;
+                    const neededOffset = ((desiredN - p) % 360 + 360) % 360;
+
+                    const randomCircles = 6 + Math.floor(Math.random() * 5);
+                    const finalRotation = randomCircles * 360 + neededOffset;
+
+                    console.log('累计偏移:', p, '需要增量:', neededOffset, '总旋转:', finalRotation);
+
+                    this.currentRotation += finalRotation;
+                    this.rotation = this.currentRotation;
+                    this.spinning = true;
+                    this.winningIndex = winningIndex;
+
+                    setTimeout(() => {
+                        this.checkResult();
+                    }, 5000);
+                },
+
+                checkResult() {
+                    const actualRotation = this.rotation % 360;
+                    const actualAngle = ((360 - actualRotation) % 360 + 360) % 360;
+
+                    console.log('实际停止角度:', actualAngle, '度');
+
+                    // conic-gradient 白色缝隙（2度宽）:
+                    // [43,45) [88,90) [133,135) [178,180)
+                    // [223,225) [268,270) [313,315) [358,360)
+                    // 只有停在纯白色缝隙里才让用户重抽，压边擦边都算中奖
+                    let isInWhiteGap = false;
+                    if (actualAngle >= 358) {
+                        isInWhiteGap = true;
+                    } else {
+                        for (let i = 1; i <= 7; i++) {
+                            const gapStart = i * 45 - 2;
+                            const gapEnd = i * 45;
+                            if (actualAngle >= gapStart && actualAngle < gapEnd) {
+                                isInWhiteGap = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (isInWhiteGap) {
+                        console.log('停在白色缝隙，提示用户重新抽');
+                        this.showBoundaryPopup = true;
+                        this.spinning = false;
+                        return;
+                    }
+
+                    // 停在颜色区域内（压边也算中奖）
+                    const segmentIndex = Math.floor(actualAngle / 45) % 8;
+                    const prize = PRIZES_CONFIG[segmentIndex];
+                    console.log('最终中奖:', segmentIndex, prize);
+
+                    this.saveResult(prize);
+                    this.showResult(prize);
+                    this.spinning = false;
+                },
+
+                async saveResult(prize) {
+                    try {
+                        const response = await fetch('/api/lottery/submit', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prize: this.userName + ' - ' + prize.name })
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            this.addToHistory(prize, data.createdAt, this.userName);
+                            this.loadHistory();
+                        }
+                    } catch (error) {
+                        console.error('保存结果失败:', error);
+                    }
+                },
+                addToHistory(prize, createdAt, name) {
+                    const time = this.formatTime(createdAt);
+                    const record = { prize: prize.name, icon: prize.icon, time, name };
+                    this.history.unshift(record);
+                    if (this.history.length > 20) {
+                        this.history = this.history.slice(0, 20);
+                    }
+                    // 如果不是"谢谢惠顾"和"再抽一次"，加入中奖记录
+                    if (prize.name !== '谢谢惠顾' && prize.name !== '再抽一次') {
+                        this.winHistory.unshift(record);
+                    }
+                },
+                showResult(prize) {
+                    this.currentPrize = {
+                        name: prize.name,
+                        icon: prize.icon,
+                        time: this.formatTime(new Date())
+                    };
+                    this.showPopup = true;
+                },
+                async loadHistory() {
+                    try {
+                        const response = await fetch('/api/lottery/all');
+                        if (response.ok) {
+                            const allResults = await response.json();
+                            // 按创建时间倒序
+                            allResults.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+                            // 找到对应的奖品信息
+                            const getPrizeInfo = (prizeName) => {
+                                return PRIZES_CONFIG.find(p => p.name === prizeName) || { icon: '🎁', name: prizeName };
+                            };
+
+                            // 解析名字和奖品
+                            const parsePrize = (prizeStr) => {
+                                const parts = prizeStr.split(' - ');
+                                if (parts.length >= 2) {
+                                    return { name: parts[0], prize: parts.slice(1).join(' - ') };
+                                }
+                                return { name: '', prize: prizeStr };
+                            };
+
+                            // 抽奖记录（最近20条）
+                            this.history = allResults.slice(0, 20).map(item => {
+                                const parsed = parsePrize(item.prize);
+                                const info = getPrizeInfo(parsed.prize);
+                                return {
+                                    prize: parsed.prize,
+                                    icon: info.icon,
+                                    time: this.formatTime(item.createdAt),
+                                    name: parsed.name
+                                };
+                            });
+
+                            // 中奖记录（排除谢谢惠顾和再抽一次）
+                            this.winHistory = allResults
+                                .filter(item => {
+                                    const parsed = parsePrize(item.prize);
+                                    return parsed.prize !== '谢谢惠顾' && parsed.prize !== '再抽一次';
+                                })
+                                .map(item => {
+                                    const parsed = parsePrize(item.prize);
+                                    const info = getPrizeInfo(parsed.prize);
+                                    return {
+                                        prize: parsed.prize,
+                                        icon: info.icon,
+                                        time: this.formatTime(item.createdAt),
+                                        name: parsed.name
+                                    };
+                                });
+                        }
+                    } catch (error) {
+                        console.error('加载历史记录失败:', error);
+                    }
+                },
+                closePopup() {
+                    this.showPopup = false;
+                    if (this.currentPrize && this.currentPrize.name === '再抽一次') {
+                        setTimeout(() => this.spin(), 500);
+                    }
+                },
+                closeBoundaryPopup() {
+                    this.showBoundaryPopup = false;
+                    // 用户点击后转盘重置，下次抽会累积旋转
+                },
+                formatTime(dateStr) {
+                    const date = new Date(dateStr);
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const hours = String(date.getHours()).padStart(2, '0');
+                    const minutes = String(date.getMinutes()).padStart(2, '0');
+                    const seconds = String(date.getSeconds()).padStart(2, '0');
+                    return `${month}-${day} ${hours}:${minutes}:${seconds}`;
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
