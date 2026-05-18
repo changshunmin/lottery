@@ -4,48 +4,64 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Spring Boot 2.7.18 application for managing lottery results. Uses JPA for data access and MySQL for persistence. Java target version: 1.8.
+Lucky Wheel lottery system with separate user lottery and admin management interfaces. Backend is Spring Boot 2.7.18 (Java 1.8) with MySQL. Frontend is Vue 3 + Vite with Element Plus, built into Spring Boot static resources.
 
 ## Build and Run
 
 ```bash
-# Build
+# Backend
+cd /data/code/lottery
 mvn clean package
+mvn spring-boot:run       # Runs on port 8080, includes hot reload via DevTools
 
-# Run
-mvn spring-boot:run
+# Frontend development
+cd frontend
+npm install               # First time
+npm run dev              # Dev server on port 5173, proxies /api to localhost:8080
+npm run build            # Builds to ../src/main/resources/static/admin/
 
-# Or run the JAR directly
-java -jar target/myapi-0.0.1-SNAPSHOT.jar
+# Full deployment
+cd frontend && npm run build && cd .. && mvn spring-boot:run
 ```
-
-## Database Configuration
-
-MySQL connection configured in `src/main/resources/application.properties`:
-- Database: `lottery_db` on localhost:3306
-- Uses JPA with `ddl-auto=update` (schema auto-created on startup)
 
 ## Architecture
 
-Three-layer Spring Boot architecture:
+### Backend Structure - Package `com.lottery`
 
-1. **Entity** (`com.example.myapi.model.LotteryResult`): JPA entity with fields:
-   - `id`: Long, auto-generated primary key
-   - `prize`: String, the prize description
-   - `createdAt`: LocalDateTime, immutable after creation
-   - `claimedBy`: String, claimant name
-   - `claimedAt`: LocalDateTime, when prize was claimed
+**Entities:**
+- `LotteryResult`: Stores lottery draws (id, prize, createdAt, claimedBy, claimedAt)
+- `PrizeConfig`: Prize rules (id, name, icon, probability, sortOrder, createdAt)
 
-2. **Repository** (`com.example.myapi.repository.LotteryResultRepository`): Standard JPA repository extending `JpaRepository`.
+**Controllers:**
+- `LotteryController` (`/api/lottery`):
+  - `POST /submit` - Save lottery result
+  - `GET /all` - Get all results
+  - `POST /{id}/claim` - Claim prize by ID
+- `PrizeController` (`/api/prizes`):
+  - `GET /` - Get all prizes (sorted by sortOrder)
+  - `POST /batch` - Batch save prizes (replaces all)
+  - Initializes default prizes if DB empty on startup
 
-3. **Controller** (`com.example.myapi.controller.LotteryController`): REST endpoints under `/api/lottery`:
-   - `POST /api/lottery/submit`: Save a new lottery result
-   - `GET /api/lottery/all`: Get all results
-   - `POST /api/lottery/{id}/claim`: Claim a prize by ID (rejects if already claimed)
+**Static Resources:**
+- User lottery page: `src/main/resources/static/` (root path `/`)
+- Admin panel: `src/main/resources/static/admin/` (path `/admin/`)
 
-## Application Entry
+### Frontend Structure - `frontend/`
 
-`Main.java` is the Spring Boot application entry point. Note that it currently contains demo code (multiplication table print) that should be removed before production use.
+Vue 3 + Vite + Element Plus admin interface with two tabs:
+- **Results Tab**: Lottery record management with search/filter (prize, user, date range), pagination, CSV export, and prize claiming
+- **Prizes Tab**: Prize configuration with CRUD operations, probability total validation
+
+**Key Configuration:**
+- `vite.config.js`: base path `/admin/`, dev proxy `/api → localhost:8080`
+- Build output: `../src/main/resources/static/admin/` (served by Spring Boot)
+
+## Database Configuration
+
+MySQL in `src/main/resources/application.properties`:
+- Database: `lottery_db` on localhost:3306
+- Schema: Auto-created via JPA `ddl-auto=update`
+- Tables: `lottery_result`, `prize_config`
 
 ## Task Master AI Instructions
 **Import Task Master's development workflow commands and guidelines, treat as if import is in the main CLAUDE.md file.**

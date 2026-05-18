@@ -73,6 +73,36 @@ const pagedResults = computed(() => {
   return sortedResults.value.slice(start, start + pageSize.value);
 });
 
+const exportData = () => {
+  const data = sortedResults.value
+  if (data.length === 0) {
+    ElMessage.warning('没有可导出的数据')
+    return
+  }
+  const headers = ['奖品', '中奖人', '中奖日期', '领取日期', '领取人']
+  const rows = data.map(r => [
+    parsePrizeName(r.prize),
+    parseUserName(r.prize),
+    new Date(r.createdAt).toLocaleString(),
+    r.claimedAt ? new Date(r.claimedAt).toLocaleString() : '-',
+    r.claimedBy || '-'
+  ])
+  const csvContent = [headers, ...rows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+  const bom = '﻿'
+  const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  const dateStr = new Date().toISOString().slice(0, 10)
+  link.download = `抽奖结果_${dateStr}.csv`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
 const resetFilters = () => {
   filterPrize.value = ''
   filterUser.value = ''
@@ -266,6 +296,7 @@ onMounted(() => {
                 <el-form-item>
                   <el-button type="primary" @click="currentPage = 1">搜索</el-button>
                   <el-button @click="resetFilters">重置</el-button>
+                  <el-button type="success" @click="exportData">导出</el-button>
                 </el-form-item>
               </el-form>
             </el-card>
