@@ -36,14 +36,39 @@
             margin-bottom: 25px;
             font-size: 13px;
         }
-        .info-text {
-            color: #999;
-            font-size: 12px;
-            margin-bottom: 20px;
-            line-height: 1.6;
+        .skin-toggle {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 50px;
         }
-        .info-text strong {
-            color: #ff6b6b;
+        .skin-btn {
+            padding: 8px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 20px;
+            background: white;
+            color: #666;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .skin-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        .skin-btn.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .prize-mgmt-btn {
+            border-color: #e67e22;
+            color: #e67e22;
+        }
+        .prize-mgmt-btn:hover {
+            border-color: #e67e22;
+            background: #fef5e7;
+            color: #e67e22;
         }
         .wheel-container {
             position: relative;
@@ -311,10 +336,21 @@
         <div class="container">
             <h1>🎰 幸运大转盘</h1>
             <p class="subtitle">点击按钮开始抽奖，转盘自动旋转后显示结果</p>
-            <p class="info-text">
-                奖品概率：<br>
-                <strong>❓奖品随机选 0.5%</strong> | 💻笔记本 1% | 📱手机 2% | 🔋充电宝 5% | 🔄再抽一次 5% | 🧾汇演发票 10% | 😊谢谢惠顾 76.5%
-            </p>
+
+            <div class="skin-toggle">
+                <button
+                    :class="['skin-btn', { active: skin === 'classic' }]"
+                    @click="switchSkin('classic')"
+                >✨ 经典皮肤</button>
+                <button
+                    :class="['skin-btn', { active: skin === 'probability' }]"
+                    @click="switchSkin('probability')"
+                >📊 概率皮肤</button>
+                <button
+                    class="skin-btn prize-mgmt-btn"
+                    @click="openPrizeManagement"
+                >⚙️ 奖品管理</button>
+            </div>
 
             <div class="wheel-container">
                 <div class="pointer"></div>
@@ -405,22 +441,6 @@
                 </button>
             </div>
         </div>
-        <div class="name-popup" v-if="showNamePopup">
-            <div class="popup-content">
-                <div class="popup-icon">👤</div>
-                <div class="popup-title">请输入您的名字</div>
-                <input
-                    type="text"
-                    class="name-input"
-                    v-model="userName"
-                    placeholder="请输入名字"
-                    maxlength="20"
-                    ref="nameInput"
-                    @keyup.enter="confirmName"
-                >
-                <button class="btn-close" @click="confirmName">确定</button>
-            </div>
-        </div>
 
         <!-- 结果弹窗 -->
         <div class="result-popup" v-if="showPopup">
@@ -450,7 +470,13 @@
     <script>
         const { createApp } = Vue;
 
-        const PRIZES_CONFIG = [
+        const GAP_WIDTH = 2;
+        const SEGMENT_COLORS = [
+            '#9B59B6', '#3498DB', '#2ECC71', '#F39C12',
+            '#E74C3C', '#1ABC9C', '#95A5A6', '#C2185B'
+        ];
+
+        const DEFAULT_PRIZES = [
             { name: '奖品随机选', icon: '❓', probability: 0.5 },
             { name: '笔记本电脑', icon: '💻', probability: 1 },
             { name: '谢谢惠顾', icon: '😊', probability: 38.25 },
@@ -461,20 +487,37 @@
             { name: '谢谢惠顾', icon: '😊', probability: 38.25 }
         ];
 
-        const SEGMENT_COLORS = [
-            '#9B59B6', '#3498DB', '#2ECC71', '#F39C12',
-            '#E74C3C', '#1ABC9C', '#95A5A6', '#C2185B'
-        ];
+        function calcSegments(prizes) {
+            const n = prizes.length;
+            const totalProb = prizes.reduce((s, p) => s + p.probability, 0);
+            const totalColorDeg = 360 - n * GAP_WIDTH;
+            const segments = [];
+            let currentAngle = 0;
+            for (let i = 0; i < n; i++) {
+                const colorDeg = (prizes[i].probability / totalProb) * totalColorDeg;
+                segments.push({
+                    colorStart: currentAngle,
+                    colorEnd: currentAngle + colorDeg,
+                    gapStart: currentAngle + colorDeg,
+                    gapEnd: currentAngle + colorDeg + GAP_WIDTH,
+                    center: currentAngle + colorDeg / 2
+                });
+                currentAngle += colorDeg + GAP_WIDTH;
+            }
+            return segments;
+        }
 
         createApp({
             mounted() {
+                this.loadPrizes();
                 this.loadHistory();
                 this.loadUserName();
             },
             data() {
                 return {
-                    prizes: PRIZES_CONFIG,
+                    prizes: DEFAULT_PRIZES,
                     colors: SEGMENT_COLORS,
+                    skin: 'classic',
                     rotation: 0,
                     spinning: false,
                     showPopup: false,
@@ -496,55 +539,115 @@
             },
             computed: {
                 wheelGradient() {
-                    let gradient = [];
-                    for (let i = 0; i < 8; i++) {
-                        const start = i * 45;
-                        const end = (i + 1) * 45 - 2;
-                        gradient.push(`${this.colors[i]} ${start}deg ${end}deg`);
-                        gradient.push(`#fff ${end}deg ${(i + 1) * 45}deg`);
+                    if (this.skin === 'classic') {
+                        return this.getGradient(45, 45 - GAP_WIDTH);
                     }
-                    return `conic-gradient(${gradient.join(', ')})`;
+                    const segments = calcSegments(this.prizes);
+                    return this.getProbabilityGradient(segments);
                 }
             },
             methods: {
+                getGradient(segDeg, colorDeg) {
+                    let gradient = [];
+                    for (let i = 0; i < this.prizes.length; i++) {
+                        const start = i * segDeg;
+                        const end = start + colorDeg;
+                        const c = this.colors[i % this.colors.length];
+                        gradient.push(`${c} ${start}deg ${end}deg`);
+                        gradient.push(`#fff ${end}deg ${(i + 1) * segDeg}deg`);
+                    }
+                    return `conic-gradient(${gradient.join(', ')})`;
+                },
+
+                getProbabilityGradient(segments) {
+                    let parts = [];
+                    for (let i = 0; i < segments.length; i++) {
+                        const seg = segments[i];
+                        const c = this.colors[i % this.colors.length];
+                        parts.push(`${c} ${seg.colorStart}deg ${seg.colorEnd}deg`);
+                        parts.push(`#fff ${seg.colorEnd}deg ${seg.gapEnd}deg`);
+                    }
+                    return `conic-gradient(${parts.join(', ')})`;
+                },
+
                 getLabelStyle(index) {
-                    // conic-gradient 从12点钟(0deg)开始顺时针
-                    // 格子0: 0-43deg, 中心22.5deg
-                    // 格子1: 45-88deg, 中心67.5deg
-                    // ...
-                    const angle = index * 45 + 22.5;
-                    return {
-                        transform: `rotate(${angle}deg)`
-                    };
+                    if (this.skin === 'classic') {
+                        const angle = index * 45 + 22.5;
+                        return { transform: `rotate(${angle}deg)` };
+                    }
+                    const segments = calcSegments(this.prizes);
+                    const seg = segments[index];
+                    return { transform: `rotate(${seg.center}deg)` };
+                },
+
+                switchSkin(skin) {
+                    this.skin = skin;
+                },
+
+                openPrizeManagement() {
+                    window.open('/admin/index.html', '_blank');
+                },
+
+                async loadPrizes() {
+                    try {
+                        const resp = await fetch('/api/prizes');
+                        if (resp.ok) {
+                            const data = await resp.json();
+                            if (data && data.length > 0) {
+                                this.prizes = data;
+                                return;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('加载奖品配置失败，使用默认配置', e);
+                    }
+                    this.prizes = DEFAULT_PRIZES;
                 },
 
                 getRandomPrizeIndex() {
-                    const random = Math.random() * 100;
+                    const total = this.prizes.reduce((s, p) => s + p.probability, 0);
+                    const random = Math.random() * total;
                     let cumulative = 0;
-                    for (let i = 0; i < PRIZES_CONFIG.length; i++) {
-                        cumulative += PRIZES_CONFIG[i].probability;
+                    for (let i = 0; i < this.prizes.length; i++) {
+                        cumulative += this.prizes[i].probability;
                         if (random < cumulative) {
                             return i;
                         }
                     }
-                    return PRIZES_CONFIG.length - 1;
+                    return this.prizes.length - 1;
+                },
+
+                getSegmentBoundaries() {
+                    if (this.skin === 'classic') {
+                        const segDeg = 45;
+                        const colorDeg = segDeg - GAP_WIDTH;
+                        const segments = [];
+                        for (let i = 0; i < this.prizes.length; i++) {
+                            const start = i * segDeg;
+                            segments.push({
+                                colorStart: start,
+                                colorEnd: start + colorDeg,
+                                gapStart: start + colorDeg,
+                                gapEnd: (i + 1) * segDeg
+                            });
+                        }
+                        return segments;
+                    }
+                    return calcSegments(this.prizes);
                 },
 
                 spin() {
                     if (this.spinning) return;
 
-                    // 如果有保存的用户名，直接开始抽奖
                     if (this.storedUserName) {
                         this.userName = this.storedUserName;
                         this.startSpin();
                         return;
                     }
 
-                    // 显示输入名字弹窗
                     this.showNamePopup = true;
                     this.userName = '';
 
-                    // 下一个tick后聚焦输入框
                     this.$nextTick(() => {
                         if (this.$refs.nameInput) {
                             this.$refs.nameInput.focus();
@@ -558,7 +661,6 @@
                         return;
                     }
                     this.userName = this.userName.trim();
-                    // 保存到 cookie，有效期 30 天
                     this.setCookie('lotteryUserName', this.userName, 30);
                     this.storedUserName = this.userName;
                     this.showNamePopup = false;
@@ -603,24 +705,19 @@
 
                 startSpin() {
                     const winningIndex = this.getRandomPrizeIndex();
-                    console.log('中奖奖品索引:', winningIndex, PRIZES_CONFIG[winningIndex]);
+                    console.log('中奖奖品索引:', winningIndex, this.prizes[winningIndex]);
 
-                    // 计算目标奖品中心角度（从12点钟方向顺时针）
-                    // conic-gradient每个格子: 0-43deg(颜色), 43-45deg(白色缝隙), ...
-                    // 中心角度为: 21.5, 66.5, 111.5, 156.5, 201.5, 246.5, 291.5, 336.5
-                    const centerAngle = winningIndex * 45 + 21.5;
+                    const boundaries = this.getSegmentBoundaries();
+                    const target = boundaries[winningIndex];
+                    const colorRange = target.colorEnd - target.colorStart;
 
-                    // 白色缝隙位置: [43,45), [88,90), [133,135), [178,180),
-                    //                [223,225), [268,270), [313,315), [358,360)
-                    // 指针停在缝隙里才算不中奖，压边/擦边都算中奖
-                    // 安全区域距边界至少留3度余量
-                    const maxOffset = 18.5;
-                    const randomOffset = (Math.random() - 0.5) * 2 * maxOffset;
-                    let targetAngle = centerAngle + randomOffset;
-                    targetAngle = Math.max(0, Math.min(359, targetAngle));
-                    console.log('目标角度:', targetAngle, '度', '(中心:', centerAngle, ')');
+                    // 指针可停在颜色区域的任意位置（含边缘像素）
+                    const randomOffset = Math.random() * colorRange;
+                    const targetAngle = target.colorStart + randomOffset;
 
-                    // 根据累计旋转修正 finalRotation，确保 actualAngle == targetAngle
+                    console.log('目标角度:', targetAngle, '奖品:', this.prizes[winningIndex].name);
+
+                    // 计算旋转量：指针在顶部(0deg)，需要旋转到目标角度
                     const p = ((this.rotation % 360) + 360) % 360;
                     const desiredN = (360 - targetAngle + 360) % 360;
                     const neededOffset = ((desiredN - p) % 360 + 360) % 360;
@@ -641,26 +738,26 @@
                 },
 
                 checkResult() {
-                    const actualRotation = this.rotation % 360;
+                    const actualRotation = ((this.rotation % 360) + 360) % 360;
                     const actualAngle = ((360 - actualRotation) % 360 + 360) % 360;
 
                     console.log('实际停止角度:', actualAngle, '度');
 
-                    // conic-gradient 白色缝隙（2度宽）:
-                    // [43,45) [88,90) [133,135) [178,180)
-                    // [223,225) [268,270) [313,315) [358,360)
-                    // 只有停在纯白色缝隙里才让用户重抽，压边擦边都算中奖
+                    const boundaries = this.getSegmentBoundaries();
+
+                    // 检查是否落在白色缝隙中
                     let isInWhiteGap = false;
-                    if (actualAngle >= 358) {
-                        isInWhiteGap = true;
-                    } else {
-                        for (let i = 1; i <= 7; i++) {
-                            const gapStart = i * 45 - 2;
-                            const gapEnd = i * 45;
-                            if (actualAngle >= gapStart && actualAngle < gapEnd) {
-                                isInWhiteGap = true;
-                                break;
-                            }
+                    for (const b of boundaries) {
+                        if (actualAngle >= b.gapStart && actualAngle < b.gapEnd) {
+                            isInWhiteGap = true;
+                            break;
+                        }
+                    }
+                    // 检查最后一个缝隙绕回0度的情况
+                    if (!isInWhiteGap) {
+                        const last = boundaries[boundaries.length - 1];
+                        if (actualAngle >= last.gapEnd - GAP_WIDTH && actualAngle < last.gapEnd) {
+                            isInWhiteGap = true;
                         }
                     }
 
@@ -671,9 +768,31 @@
                         return;
                     }
 
-                    // 停在颜色区域内（压边也算中奖）
-                    const segmentIndex = Math.floor(actualAngle / 45) % 8;
-                    const prize = PRIZES_CONFIG[segmentIndex];
+                    // 确定落在哪个格子（压边也算中奖）
+                    let segmentIndex = -1;
+                    for (let i = 0; i < boundaries.length; i++) {
+                        const b = boundaries[i];
+                        if (actualAngle >= b.colorStart && actualAngle < b.colorEnd) {
+                            segmentIndex = i;
+                            break;
+                        }
+                    }
+                    // 兜底：如果在缝隙判定之后仍找不到，用最近的颜色区域
+                    if (segmentIndex === -1) {
+                        for (let i = 0; i < boundaries.length; i++) {
+                            const b = boundaries[i];
+                            // 含边界
+                            if (actualAngle >= b.gapStart - 0.01 && actualAngle < b.gapEnd + 0.01) {
+                                segmentIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                    if (segmentIndex === -1) {
+                        segmentIndex = Math.floor(actualAngle / (360 / this.prizes.length)) % this.prizes.length;
+                    }
+
+                    const prize = this.prizes[segmentIndex];
                     console.log('最终中奖:', segmentIndex, prize);
 
                     this.saveResult(prize);
@@ -704,7 +823,6 @@
                     if (this.history.length > 20) {
                         this.history = this.history.slice(0, 20);
                     }
-                    // 如果不是"谢谢惠顾"和"再抽一次"，加入中奖记录
                     if (prize.name !== '谢谢惠顾' && prize.name !== '再抽一次') {
                         this.winHistory.unshift(record);
                     }
@@ -722,15 +840,12 @@
                         const response = await fetch('/api/lottery/all');
                         if (response.ok) {
                             const allResults = await response.json();
-                            // 按创建时间倒序
                             allResults.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-                            // 找到对应的奖品信息
                             const getPrizeInfo = (prizeName) => {
-                                return PRIZES_CONFIG.find(p => p.name === prizeName) || { icon: '🎁', name: prizeName };
+                                return this.prizes.find(p => p.name === prizeName) || { icon: '🎁', name: prizeName };
                             };
 
-                            // 解析名字和奖品
                             const parsePrize = (prizeStr) => {
                                 const parts = prizeStr.split(' - ');
                                 if (parts.length >= 2) {
@@ -739,7 +854,6 @@
                                 return { name: '', prize: prizeStr };
                             };
 
-                            // 抽奖记录（最近20条）
                             this.history = allResults.slice(0, 20).map(item => {
                                 const parsed = parsePrize(item.prize);
                                 const info = getPrizeInfo(parsed.prize);
@@ -751,7 +865,6 @@
                                 };
                             });
 
-                            // 中奖记录（排除谢谢惠顾和再抽一次）
                             this.winHistory = allResults
                                 .filter(item => {
                                     const parsed = parsePrize(item.prize);
@@ -780,7 +893,6 @@
                 },
                 closeBoundaryPopup() {
                     this.showBoundaryPopup = false;
-                    // 用户点击后转盘重置，下次抽会累积旋转
                 },
                 formatTime(dateStr) {
                     const date = new Date(dateStr);

@@ -1,5 +1,8 @@
+com/lottery/controller/PrizeController.class
 com/lottery/controller/LotteryController.class
 com/lottery/LotteryApplication.class
+com/lottery/config/CorsConfig.class
+com/lottery/repository/PrizeConfigRepository.class
+com/lottery/model/PrizeConfig.class
 com/lottery/model/LotteryResult.class
 com/lottery/repository/LotteryResultRepository.class
-com/lottery/config/CorsConfig.class
