@@ -1,11 +1,10 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import axios from 'axios'
 
 const activeTab = ref('results')
 const results = ref([])
-const form = ref({ prize: '' })
 const claimDialogVisible = ref(false)
 const currentResult = ref(null)
 const claimForm = ref({ claimerName: '' })
@@ -14,6 +13,77 @@ const prizes = ref([])
 const prizeFormVisible = ref(false)
 const editingIndex = ref(-1)
 const prizeForm = ref({ name: '', icon: '', probability: null })
+
+// 搜索筛选
+const filterPrize = ref('')
+const filterUser = ref('')
+const filterDateRange = ref(null)
+const currentPage = ref(1)
+const pageSize = ref(10)
+
+// 工具函数
+const parsePrizeName = (prizeStr) => {
+  const parts = prizeStr.split(' - ');
+  return parts.length >= 2 ? parts.slice(1).join(' - ') : prizeStr;
+}
+const parseUserName = (prizeStr) => {
+  const parts = prizeStr.split(' - ');
+  return parts.length >= 2 ? parts[0] : '';
+}
+const isNonWinning = (name) => name === '谢谢惠顾' || name === '再抽一次';
+
+// 筛选结果
+const filteredResults = computed(() => {
+  let list = results.value;
+  if (filterPrize.value) {
+    list = list.filter(r => parsePrizeName(r.prize) === filterPrize.value);
+  }
+  if (filterUser.value) {
+    const q = filterUser.value.toLowerCase();
+    list = list.filter(r => parseUserName(r.prize).toLowerCase().includes(q));
+  }
+  if (filterDateRange.value) {
+    const [start, end] = filterDateRange.value;
+    const startTime = new Date(start).setHours(0, 0, 0, 0);
+    const endTime = new Date(end).setHours(23, 59, 59, 999);
+    list = list.filter(r => {
+      const t = new Date(r.createdAt).getTime();
+      return t >= startTime && t <= endTime;
+    });
+  }
+  return list;
+});
+
+// 排序：中奖类别在前，非中奖在后
+const sortedResults = computed(() => {
+  return [...filteredResults.value].sort((a, b) => {
+    const aNonWin = isNonWinning(parsePrizeName(a.prize)) ? 1 : 0;
+    const bNonWin = isNonWinning(parsePrizeName(b.prize)) ? 1 : 0;
+    if (aNonWin !== bNonWin) return aNonWin - bNonWin;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+});
+
+// 分页（pageNumber 自动钳制到有效范围，避免筛选后页码越界导致空白页）
+const pagedResults = computed(() => {
+  const total = sortedResults.value.length;
+  const maxPage = Math.max(1, Math.ceil(total / pageSize.value));
+  if (currentPage.value > maxPage) currentPage.value = maxPage;
+  const start = (currentPage.value - 1) * pageSize.value;
+  return sortedResults.value.slice(start, start + pageSize.value);
+});
+
+const resetFilters = () => {
+  filterPrize.value = ''
+  filterUser.value = ''
+  filterDateRange.value = null
+  currentPage.value = 1
+}
+
+// 筛选条件变化时自动回到第一页
+watch([filterPrize, filterUser, filterDateRange], () => {
+  currentPage.value = 1
+})
 
 const API_BASE = '/api/lottery'
 const PRIZE_API = '/api/prizes'
@@ -24,21 +94,6 @@ const fetchResults = async () => {
     results.value = response.data
   } catch (error) {
     ElMessage.error('获取数据失败')
-  }
-}
-
-const submitResult = async () => {
-  if (!form.value.prize.trim()) {
-    ElMessage.warning('请输入奖品名称')
-    return
-  }
-  try {
-    await axios.post(`${API_BASE}/submit`, form.value)
-    ElMessage.success('提交成功')
-    form.value.prize = ''
-    fetchResults()
-  } catch (error) {
-    ElMessage.error('提交失败')
   }
 }
 
@@ -184,54 +239,92 @@ onMounted(() => {
       <el-main>
         <el-tabs v-model="activeTab" type="border-card">
           <el-tab-pane label="抽奖结果" name="results">
-            <el-card class="submit-card">
+            <el-card class="search-card">
               <template #header>
-                <span><el-icon><Plus /></el-icon> 添加抽奖结果</span>
+                <span><el-icon><Search /></el-icon> 搜索筛选</span>
               </template>
-              <el-form :model="form" inline>
+              <el-form inline>
                 <el-form-item label="奖品名称">
-                  <el-input v-model="form.prize" placeholder="请输入奖品名称" clearable />
+                  <el-select v-model="filterPrize" placeholder="全部奖品" clearable style="width:160px">
+                    <el-option v-for="p in prizes" :key="p.name" :label="p.name" :value="p.name" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="中奖人">
+                  <el-input v-model="filterUser" placeholder="输入中奖人" clearable style="width:160px" />
+                </el-form-item>
+                <el-form-item label="中奖日期">
+                  <el-date-picker
+                    v-model="filterDateRange"
+                    type="daterange"
+                    range-separator="至"
+                    start-placeholder="开始日期"
+                    end-placeholder="结束日期"
+                    value-format="YYYY-MM-DD"
+                    style="width:260px"
+                  />
                 </el-form-item>
                 <el-form-item>
-                  <el-button type="primary" @click="submitResult">提交</el-button>
+                  <el-button type="primary" @click="currentPage = 1">搜索</el-button>
+                  <el-button @click="resetFilters">重置</el-button>
                 </el-form-item>
               </el-form>
             </el-card>
 
             <el-card class="list-card">
               <template #header>
-                <span><el-icon><List /></el-icon> 抽奖结果列表</span>
+                <span><el-icon><List /></el-icon> 抽奖结果列表（共 {{ sortedResults.length }} 条）</span>
               </template>
-              <el-table :data="results" stripe>
-                <el-table-column prop="id" label="ID" width="80" />
-                <el-table-column prop="prize" label="奖品" min-width="200" />
-                <el-table-column label="状态" width="100">
+              <el-table :data="pagedResults" stripe>
+                <el-table-column label="奖品" min-width="140">
                   <template #default="{ row }">
-                    <el-tag :type="row.claimedBy ? 'success' : 'warning'">
-                      {{ row.claimedBy ? '已领奖' : '未领奖' }}
-                    </el-tag>
+                    <span>{{ parsePrizeName(row.prize) }}</span>
                   </template>
                 </el-table-column>
-                <el-table-column prop="claimedBy" label="领奖人" width="120" />
-                <el-table-column prop="createdAt" label="创建时间" width="180">
+                <el-table-column label="中奖人" width="120">
+                  <template #default="{ row }">
+                    <span>{{ parseUserName(row.prize) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="中奖日期" width="170">
                   <template #default="{ row }">
                     {{ new Date(row.createdAt).toLocaleString() }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="领取日期" width="170">
+                  <template #default="{ row }">
+                    {{ row.claimedAt ? new Date(row.claimedAt).toLocaleString() : '-' }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="领取人" width="120">
+                  <template #default="{ row }">
+                    <el-tag v-if="row.claimedBy" type="success">{{ row.claimedBy }}</el-tag>
+                    <span v-else class="claimed-text">未领取</span>
                   </template>
                 </el-table-column>
                 <el-table-column label="操作" width="100" fixed="right">
                   <template #default="{ row }">
                     <el-button
-                      v-if="!row.claimedBy"
+                      v-if="!row.claimedBy && !isNonWinning(parsePrizeName(row.prize))"
                       type="primary"
                       size="small"
                       @click="openClaimDialog(row)"
                     >
                       领奖
                     </el-button>
-                    <span v-else class="claimed-text">已领奖</span>
+                    <span v-else-if="row.claimedBy" class="claimed-text">已领奖</span>
+                    <span v-else class="nonwin-text">非中奖</span>
                   </template>
                 </el-table-column>
               </el-table>
+              <div class="pagination-wrapper" v-if="sortedResults.length > pageSize">
+                <el-pagination
+                  v-model:current-page="currentPage"
+                  :page-size="pageSize"
+                  :total="sortedResults.length"
+                  layout="total, prev, pager, next"
+                  background
+                />
+              </div>
             </el-card>
           </el-tab-pane>
 
@@ -356,13 +449,24 @@ onMounted(() => {
   font-size: 24px;
 }
 
-.submit-card {
+.search-card {
   margin-bottom: 20px;
 }
 
 .claimed-text {
   color: #909399;
   font-size: 14px;
+}
+
+.nonwin-text {
+  color: #c0c4cc;
+  font-size: 14px;
+}
+
+.pagination-wrapper {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
 }
 
 .prize-header {

@@ -4,6 +4,7 @@ import vue from '@vitejs/plugin-vue'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
+  base: '/admin/',
   server: {
     port: 5173,
     proxy: {
@@ -12,5 +13,9 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    outDir: '../src/main/resources/static/admin',
+    emptyOutDir: true
   }
 })

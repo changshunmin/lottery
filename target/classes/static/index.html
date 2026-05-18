@@ -326,6 +326,50 @@
             color: #999;
             font-size: 14px;
         }
+        .legend {
+            margin: 25px 0 30px;
+            padding: 16px 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            text-align: left;
+        }
+        .legend-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e8e8e8;
+        }
+        .legend-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0 16px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 0;
+        }
+        .legend-color-swatch {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            border: 1px solid rgba(0,0,0,0.08);
+        }
+        .legend-icon {
+            font-size: 18px;
+            width: 26px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .legend-name {
+            font-size: 14px;
+            color: #555;
+            font-weight: 500;
+        }
         [v-cloak] {
             display: none;
         }
@@ -362,6 +406,7 @@
                         :key="index"
                         class="segment-label"
                         :style="getLabelStyle(index)"
+                        v-show="skin === 'classic'"
                     >
                         <div class="segment-label-inner">
                             <span class="segment-label-text">{{ prize.name }}</span>
@@ -370,6 +415,17 @@
                     </div>
                 </div>
                 <div class="center-circle" :class="{ disabled: spinning }" @click="spin" unselectable="on">🎁</div>
+            </div>
+
+            <div v-if="skin === 'probability'" class="legend">
+                <div class="legend-title">🎨 奖品图例</div>
+                <div class="legend-grid">
+                    <div class="legend-item" v-for="(prize, index) in prizes" :key="'l'+index">
+                        <span class="legend-color-swatch" :style="{ backgroundColor: colors[index % colors.length] }"></span>
+                        <span class="legend-icon">{{ prize.icon }}</span>
+                        <span class="legend-name">{{ prize.name }}</span>
+                    </div>
+                </div>
             </div>
 
             <div class="tabs">
