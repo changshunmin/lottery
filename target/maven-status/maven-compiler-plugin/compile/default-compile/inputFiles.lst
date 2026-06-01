@@ -1,8 +1,0 @@
-/data/code/lottery/src/main/java/com/lottery/config/CorsConfig.java
-/data/code/lottery/src/main/java/com/lottery/controller/PrizeController.java
-/data/code/lottery/src/main/java/com/lottery/model/PrizeConfig.java
-/data/code/lottery/src/main/java/com/lottery/LotteryApplication.java
-/data/code/lottery/src/main/java/com/lottery/controller/LotteryController.java
-/data/code/lottery/src/main/java/com/lottery/model/LotteryResult.java
-/data/code/lottery/src/main/java/com/lottery/repository/LotteryResultRepository.java
-/data/code/lottery/src/main/java/com/lottery/repository/PrizeConfigRepository.java

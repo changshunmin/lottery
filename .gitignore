@@ -1,4 +1,9 @@
 ```
+# ide
+.idea/
+.vscode/
+*.iml
+
 # Build artifacts
 dist/
 build/
