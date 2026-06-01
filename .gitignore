@@ -42,6 +42,21 @@ htmlcov/
 # System files
 .DS_Store
 Thumbs.db
+# ide
+.idea/
+.vscode/
+*.iml
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Logs
 *.log
@@ -70,3 +85,7 @@ Thumbs.db
 *.tar.xz
 *.tar.zst
 ```
+# Environment
+.env
+.env.local
+.env.*
