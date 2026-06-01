@@ -36,6 +36,103 @@
             margin-bottom: 25px;
             font-size: 13px;
         }
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 15px;
+                border-radius: 15px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            .subtitle {
+                font-size: 12px;
+            }
+            .skin-toggle {
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-bottom: 30px;
+            }
+            .skin-btn {
+                padding: 6px 14px;
+                font-size: 12px;
+                border-radius: 15px;
+            }
+            .wheel-container {
+                width: 280px;
+                height: 280px;
+                margin: 0 auto 20px;
+            }
+            .center-circle {
+                width: 60px;
+                height: 60px;
+                font-size: 24px;
+            }
+            .legend {
+                padding: 12px 15px;
+            }
+            .legend-title {
+                font-size: 14px;
+            }
+            .legend-name {
+                font-size: 12px;
+            }
+            .tabs {
+                gap: 5px;
+            }
+            .tab {
+                padding: 8px 15px;
+                font-size: 13px;
+            }
+            .history-title {
+                font-size: 16px;
+            }
+            .history-item {
+                font-size: 12px;
+                padding: 8px;
+            }
+            .popup-content {
+                padding: 25px;
+                max-width: 90%;
+            }
+            .popup-icon {
+                font-size: 60px;
+            }
+            .popup-title {
+                font-size: 22px;
+            }
+            .popup-prize {
+                font-size: 20px;
+            }
+            .btn-close {
+                padding: 10px 30px;
+                font-size: 14px;
+            }
+            .name-input {
+                max-width: 200px;
+                padding: 10px 14px;
+                font-size: 14px;
+            }
+        }
+        @media (max-width: 480px) {
+            .wheel-container {
+                width: 240px;
+                height: 240px;
+            }
+            h1 {
+                font-size: 20px;
+            }
+            .skin-toggle {
+                justify-content: center;
+            }
+            .skin-btn {
+                flex: 1 1 100%;
+                max-width: 200px;
+            }
+        }
         .skin-toggle {
             display: flex;
             justify-content: center;
