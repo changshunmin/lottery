@@ -66,10 +66,34 @@
                 height: 280px;
                 margin: 0 auto 20px;
             }
+            .wheel-ring {
+                top: -8px;
+                left: -8px;
+                right: -8px;
+                bottom: -8px;
+            }
+            .pointer {
+                top: -15px;
+                border-left: 16px solid transparent;
+                border-right: 16px solid transparent;
+                border-top: 36px solid #ff4757;
+            }
             .center-circle {
                 width: 60px;
                 height: 60px;
                 font-size: 24px;
+            }
+            .segment-label-inner {
+                left: -40px;
+                top: -95px;
+                width: 80px;
+            }
+            .segment-label-text {
+                font-size: 11px;
+            }
+            .segment-label-icon {
+                font-size: 15px;
+                margin-top: 3px;
             }
             .legend {
                 padding: 12px 15px;
@@ -79,6 +103,10 @@
             }
             .legend-name {
                 font-size: 12px;
+            }
+            .legend-grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
             }
             .tabs {
                 gap: 5px;
@@ -118,19 +146,172 @@
             }
         }
         @media (max-width: 480px) {
+            body {
+                padding: 8px;
+            }
+            .container {
+                padding: 12px;
+                border-radius: 12px;
+            }
             .wheel-container {
-                width: 240px;
-                height: 240px;
+                width: 260px;
+                height: 260px;
+                margin: 0 auto 15px;
+            }
+            .wheel-ring {
+                top: -6px;
+                left: -6px;
+                right: -6px;
+                bottom: -6px;
+            }
+            .pointer {
+                top: -12px;
+                border-left: 14px solid transparent;
+                border-right: 14px solid transparent;
+                border-top: 30px solid #ff4757;
+            }
+            .center-circle {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+            .segment-label-inner {
+                left: -35px;
+                top: -80px;
+                width: 70px;
+            }
+            .segment-label-text {
+                font-size: 10px;
+            }
+            .segment-label-icon {
+                font-size: 13px;
+                margin-top: 2px;
             }
             h1 {
                 font-size: 20px;
             }
+            .subtitle {
+                font-size: 11px;
+                margin-bottom: 15px;
+            }
             .skin-toggle {
                 justify-content: center;
+                gap: 6px;
+                margin-bottom: 20px;
             }
             .skin-btn {
                 flex: 1 1 100%;
-                max-width: 200px;
+                max-width: 180px;
+                padding: 8px 16px;
+                font-size: 13px;
+            }
+            .legend {
+                padding: 10px 12px;
+                margin: 15px 0 20px;
+            }
+            .legend-item {
+                padding: 5px 0;
+            }
+            .legend-color-swatch {
+                width: 14px;
+                height: 14px;
+            }
+            .legend-icon {
+                font-size: 16px;
+                width: 22px;
+            }
+            .tabs {
+                gap: 3px;
+                margin-bottom: 15px;
+            }
+            .tab {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+            .history {
+                margin-top: 20px;
+            }
+            .history-title {
+                font-size: 14px;
+                margin-bottom: 10px;
+                padding-bottom: 8px;
+            }
+            .history-item {
+                padding: 6px;
+                font-size: 11px;
+            }
+            .popup-content {
+                padding: 20px;
+                max-width: 92%;
+                border-radius: 15px;
+            }
+            .popup-icon {
+                font-size: 50px;
+                margin-bottom: 15px;
+            }
+            .popup-title {
+                font-size: 18px;
+                margin-bottom: 8px;
+            }
+            .popup-prize {
+                font-size: 18px;
+                margin-bottom: 8px;
+            }
+            .popup-time {
+                font-size: 12px;
+                margin-bottom: 20px;
+            }
+            .btn-close {
+                padding: 8px 25px;
+                font-size: 13px;
+                border-radius: 25px;
+            }
+            .name-input {
+                max-width: 180px;
+                padding: 8px 12px;
+                font-size: 13px;
+                margin: 15px 0;
+            }
+        }
+        @media (max-width: 360px) {
+            .wheel-container {
+                width: 240px;
+                height: 240px;
+            }
+            .wheel-ring {
+                top: -5px;
+                left: -5px;
+                right: -5px;
+                bottom: -5px;
+            }
+            .pointer {
+                top: -10px;
+                border-left: 12px solid transparent;
+                border-right: 12px solid transparent;
+                border-top: 26px solid #ff4757;
+            }
+            .center-circle {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
+            .segment-label-inner {
+                left: -30px;
+                top: -70px;
+                width: 60px;
+            }
+            .segment-label-text {
+                font-size: 9px;
+            }
+            .segment-label-icon {
+                font-size: 12px;
+            }
+            h1 {
+                font-size: 18px;
+            }
+            .skin-btn {
+                padding: 6px 12px;
+                font-size: 12px;
             }
         }
         .skin-toggle {
