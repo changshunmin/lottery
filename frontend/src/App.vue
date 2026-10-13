@@ -37,49 +37,31 @@ const parseUserName = (prizeStr) => {
 }
 const isNonWinning = (name) => name === '谢谢惠顾' || name === '再抽一次';
 
-// 筛选结果
-const filteredResults = computed(() => {
-  let list = results.value;
-  if (filterPrize.value) {
-    list = list.filter(r => parsePrizeName(r.prize) === filterPrize.value);
-  }
-  if (filterUser.value) {
-    const q = filterUser.value.toLowerCase();
-    list = list.filter(r => parseUserName(r.prize).toLowerCase().includes(q));
-  }
+// 服务端分页总数
+const totalCount = ref(0)
+
+const buildFilterParams = () => {
+  const params = {}
+  if (filterPrize.value) params.prize = filterPrize.value
+  if (filterUser.value) params.user = filterUser.value
   if (filterDateRange.value) {
-    const [start, end] = filterDateRange.value;
-    const startTime = new Date(start).setHours(0, 0, 0, 0);
-    const endTime = new Date(end).setHours(23, 59, 59, 999);
-    list = list.filter(r => {
-      const t = new Date(r.createdAt).getTime();
-      return t >= startTime && t <= endTime;
-    });
+    params.startDate = filterDateRange.value[0]
+    params.endDate = filterDateRange.value[1]
   }
-  return list;
-});
+  return params
+}
 
-// 排序：中奖类别在前，非中奖在后
-const sortedResults = computed(() => {
-  return [...filteredResults.value].sort((a, b) => {
-    const aNonWin = isNonWinning(parsePrizeName(a.prize)) ? 1 : 0;
-    const bNonWin = isNonWinning(parsePrizeName(b.prize)) ? 1 : 0;
-    if (aNonWin !== bNonWin) return aNonWin - bNonWin;
-    return new Date(b.createdAt) - new Date(a.createdAt);
-  });
-});
-
-// 分页（pageNumber 自动钳制到有效范围，避免筛选后页码越界导致空白页）
-const pagedResults = computed(() => {
-  const total = sortedResults.value.length;
-  const maxPage = Math.max(1, Math.ceil(total / pageSize.value));
-  if (currentPage.value > maxPage) currentPage.value = maxPage;
-  const start = (currentPage.value - 1) * pageSize.value;
-  return sortedResults.value.slice(start, start + pageSize.value);
-});
-
-const exportData = () => {
-  const data = sortedResults.value
+const exportData = async () => {
+  let data
+  try {
+    const response = await axios.get(`${API_BASE}/page`, {
+      params: { ...buildFilterParams(), page: 0, size: 100 }
+    })
+    data = response.data.content
+  } catch (error) {
+    ElMessage.error('导出数据获取失败')
+    return
+  }
   if (data.length === 0) {
     ElMessage.warning('没有可导出的数据')
     return
@@ -113,11 +95,23 @@ const resetFilters = () => {
   filterUser.value = ''
   filterDateRange.value = null
   currentPage.value = 1
+  fetchResults()
 }
 
-// 筛选条件变化时自动回到第一页
+const search = () => {
+  currentPage.value = 1
+  fetchResults()
+}
+
+// 筛选条件变化时回到第一页并重新拉取
 watch([filterPrize, filterUser, filterDateRange], () => {
   currentPage.value = 1
+  fetchResults()
+})
+
+// 页码变化时重新拉取
+watch(currentPage, () => {
+  fetchResults()
 })
 
 const API_BASE = '/api/lottery'
@@ -125,8 +119,15 @@ const PRIZE_API = '/api/prizes'
 
 const fetchResults = async () => {
   try {
-    const response = await axios.get(`${API_BASE}/all`)
-    results.value = response.data
+    const response = await axios.get(`${API_BASE}/page`, {
+      params: {
+        ...buildFilterParams(),
+        page: currentPage.value - 1,
+        size: pageSize.value
+      }
+    })
+    results.value = response.data.content
+    totalCount.value = response.data.totalElements
   } catch (error) {
     ElMessage.error('获取数据失败')
   }
@@ -317,7 +318,7 @@ onUnmounted(() => {
                   />
                 </el-form-item>
                 <el-form-item>
-                  <el-button type="primary" @click="currentPage = 1">搜索</el-button>
+                  <el-button type="primary" @click="search">搜索</el-button>
                   <el-button @click="resetFilters">重置</el-button>
                   <el-button type="success" @click="exportData">导出</el-button>
                 </el-form-item>
@@ -326,9 +327,9 @@ onUnmounted(() => {
 
             <el-card class="list-card">
               <template #header>
-                <span><el-icon><List /></el-icon> 抽奖结果列表（共 {{ sortedResults.length }} 条）</span>
+                <span><el-icon><List /></el-icon> 抽奖结果列表（共 {{ totalCount }} 条）</span>
               </template>
-              <el-table :data="pagedResults" stripe ref="resultTable" :max-height="tableMaxHeight">
+              <el-table :data="results" stripe ref="resultTable" :max-height="tableMaxHeight">
                 <el-table-column label="奖品" min-width="120" show-overflow-tooltip>
                   <template #default="{ row }">
                     <span>{{ parsePrizeName(row.prize) }}</span>
@@ -370,11 +371,11 @@ onUnmounted(() => {
                   </template>
                 </el-table-column>
               </el-table>
-              <div class="pagination-wrapper" v-if="sortedResults.length > pageSize">
+              <div class="pagination-wrapper" v-if="totalCount > pageSize">
                 <el-pagination
                   v-model:current-page="currentPage"
                   :page-size="pageSize"
-                  :total="sortedResults.length"
+                  :total="totalCount"
                   layout="total, prev, pager, next"
                   background
                 />

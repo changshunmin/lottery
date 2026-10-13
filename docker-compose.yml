@@ -35,6 +35,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: lottery123
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "false"
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-{noop}admin123}
 
 volumes:
   mysql-data:

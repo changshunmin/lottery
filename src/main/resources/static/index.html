@@ -939,19 +939,6 @@
                     this.prizes = DEFAULT_PRIZES;
                 },
 
-                getRandomPrizeIndex() {
-                    const total = this.prizes.reduce((s, p) => s + p.probability, 0);
-                    const random = Math.random() * total;
-                    let cumulative = 0;
-                    for (let i = 0; i < this.prizes.length; i++) {
-                        cumulative += this.prizes[i].probability;
-                        if (random < cumulative) {
-                            return i;
-                        }
-                    }
-                    return this.prizes.length - 1;
-                },
-
                 getSegmentBoundaries() {
                     if (this.skin === 'classic') {
                         const segDeg = 45;
@@ -971,12 +958,12 @@
                     return calcSegments(this.prizes);
                 },
 
-                spin() {
+                async spin() {
                     if (this.spinning) return;
 
                     if (this.storedUserName) {
                         this.userName = this.storedUserName;
-                        this.startSpin();
+                        await this.startSpin();
                         return;
                     }
 
@@ -990,7 +977,7 @@
                     });
                 },
 
-                confirmName() {
+                async confirmName() {
                     if (!this.userName || !this.userName.trim()) {
                         alert('请输入您的名字');
                         return;
@@ -999,7 +986,7 @@
                     this.setCookie('lotteryUserName', this.userName, 30);
                     this.storedUserName = this.userName;
                     this.showNamePopup = false;
-                    this.startSpin();
+                    await this.startSpin();
                 },
 
                 clearName() {
@@ -1038,21 +1025,40 @@
                     }
                 },
 
-                startSpin() {
-                    const winningIndex = this.getRandomPrizeIndex();
-                    console.log('中奖奖品索引:', winningIndex, this.prizes[winningIndex]);
+                async startSpin() {
+                    if (this.spinning) return;
+                    this.spinning = true;
+
+                    let drawResult;
+                    try {
+                        const response = await fetch('/api/lottery/draw', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ userName: this.userName })
+                        });
+                        if (!response.ok) {
+                            throw new Error('抽奖请求失败');
+                        }
+                        drawResult = await response.json();
+                    } catch (error) {
+                        console.error('抽奖失败:', error);
+                        this.spinning = false;
+                        alert('抽奖失败，请稍后重试');
+                        return;
+                    }
+
+                    const winningIndex = this.normalizeIndex(drawResult.index, drawResult.name);
+                    console.log('服务端中奖索引:', winningIndex, drawResult);
 
                     const boundaries = this.getSegmentBoundaries();
                     const target = boundaries[winningIndex];
                     const colorRange = target.colorEnd - target.colorStart;
 
-                    // 指针可停在颜色区域的任意位置（含边缘像素）
+                    // 指针停在颜色区域的随机位置
                     const randomOffset = Math.random() * colorRange;
                     const targetAngle = target.colorStart + randomOffset;
 
-                    console.log('目标角度:', targetAngle, '奖品:', this.prizes[winningIndex].name);
-
-                    // 计算旋转量：指针在顶部(0deg)，需要旋转到目标角度
+                    // 计算旋转量：指针在顶部(0deg)
                     const p = ((this.rotation % 360) + 360) % 360;
                     const desiredN = (360 - targetAngle + 360) % 360;
                     const neededOffset = ((desiredN - p) % 360 + 360) % 360;
@@ -1060,97 +1066,34 @@
                     const randomCircles = 6 + Math.floor(Math.random() * 5);
                     const finalRotation = randomCircles * 360 + neededOffset;
 
-                    console.log('累计偏移:', p, '需要增量:', neededOffset, '总旋转:', finalRotation);
-
                     this.currentRotation += finalRotation;
                     this.rotation = this.currentRotation;
-                    this.spinning = true;
                     this.winningIndex = winningIndex;
 
                     setTimeout(() => {
-                        this.checkResult();
+                        this.finishSpin(drawResult, winningIndex);
                     }, 5000);
                 },
 
-                checkResult() {
-                    const actualRotation = ((this.rotation % 360) + 360) % 360;
-                    const actualAngle = ((360 - actualRotation) % 360 + 360) % 360;
-
-                    console.log('实际停止角度:', actualAngle, '度');
-
-                    const boundaries = this.getSegmentBoundaries();
-
-                    // 检查是否落在白色缝隙中
-                    let isInWhiteGap = false;
-                    for (const b of boundaries) {
-                        if (actualAngle >= b.gapStart && actualAngle < b.gapEnd) {
-                            isInWhiteGap = true;
-                            break;
-                        }
+                // 服务端返回的 index 可能因奖品配置变化而越界，做一次兜底
+                normalizeIndex(index, name) {
+                    if (Number.isInteger(index) && index >= 0 && index < this.prizes.length) {
+                        return index;
                     }
-                    // 检查最后一个缝隙绕回0度的情况
-                    if (!isInWhiteGap) {
-                        const last = boundaries[boundaries.length - 1];
-                        if (actualAngle >= last.gapEnd - GAP_WIDTH && actualAngle < last.gapEnd) {
-                            isInWhiteGap = true;
-                        }
-                    }
+                    const found = this.prizes.findIndex(p => p.name === name);
+                    return found >= 0 ? found : 0;
+                },
 
-                    if (isInWhiteGap) {
-                        console.log('停在白色缝隙，提示用户重新抽');
-                        this.showBoundaryPopup = true;
-                        this.spinning = false;
-                        return;
-                    }
-
-                    // 确定落在哪个格子（压边也算中奖）
-                    let segmentIndex = -1;
-                    for (let i = 0; i < boundaries.length; i++) {
-                        const b = boundaries[i];
-                        if (actualAngle >= b.colorStart && actualAngle < b.colorEnd) {
-                            segmentIndex = i;
-                            break;
-                        }
-                    }
-                    // 兜底：如果在缝隙判定之后仍找不到，用最近的颜色区域
-                    if (segmentIndex === -1) {
-                        for (let i = 0; i < boundaries.length; i++) {
-                            const b = boundaries[i];
-                            // 含边界
-                            if (actualAngle >= b.gapStart - 0.01 && actualAngle < b.gapEnd + 0.01) {
-                                segmentIndex = i;
-                                break;
-                            }
-                        }
-                    }
-                    if (segmentIndex === -1) {
-                        segmentIndex = Math.floor(actualAngle / (360 / this.prizes.length)) % this.prizes.length;
-                    }
-
-                    const prize = this.prizes[segmentIndex];
-                    console.log('最终中奖:', segmentIndex, prize);
-
-                    this.saveResult(prize);
+                finishSpin(drawResult, winningIndex) {
+                    const prize = {
+                        name: drawResult.name,
+                        icon: drawResult.icon || this.prizes[winningIndex].icon
+                    };
                     this.showResult(prize);
+                    this.loadHistory();
                     this.spinning = false;
                 },
 
-                async saveResult(prize) {
-                    try {
-                        const response = await fetch('/api/lottery/submit', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ prize: this.userName + ' - ' + prize.name })
-                        });
-                        if (response.ok) {
-                            const data = await response.json();
-                            this.addToHistory(prize, data.createdAt, this.userName);
-                            this.loadHistory();
-                        }
-                    } catch (error) {
-                        console.error('保存结果失败:', error);
-                    }
-                },
                 addToHistory(prize, createdAt, name) {
                     const time = this.formatTime(createdAt);
                     const record = { prize: prize.name, icon: prize.icon, time, name };
@@ -1172,7 +1115,7 @@
                 },
                 async loadHistory() {
                     try {
-                        const response = await fetch('/api/lottery/all');
+                        const response = await fetch('/api/lottery/recent?limit=20');
                         if (response.ok) {
                             const allResults = await response.json();
                             allResults.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));

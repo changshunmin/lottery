@@ -3,6 +3,7 @@ package com.lottery.controller;
 import com.lottery.model.PrizeConfig;
 import com.lottery.repository.PrizeConfigRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
@@ -27,6 +28,7 @@ public class PrizeController {
     }
 
     @PostMapping("/batch")
+    @Transactional
     public List<PrizeConfig> batchSave(@RequestBody List<PrizeConfig> prizes) {
         repository.deleteAll();
         for (int i = 0; i < prizes.size(); i++) {
